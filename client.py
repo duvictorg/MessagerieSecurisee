@@ -1,5 +1,6 @@
 import tkinter as tk
 
+"""
 # Créer la fenêtre principale
 root = tk.Tk()
 root.title("Channel de discussion")
@@ -33,21 +34,41 @@ button.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 
 # Lancer la boucle principale de l'application
 root.mainloop()
+"""
 
 # Import socket module
 import socket
 
-# Create a socket object
+# Créer un objet socket
 s = socket.socket()
 
-# Define the port on which you want to connect
-port = 5555
+# Définir l'adresse IP et le port du serveur
+HOST_IP = '172.20.10.7'  # Remplacez par l'adresse IP du serveur
+PORT = 5555
 
-# connect to the server on local computer
-s.connect(('172.20.10.7', port))
+# Se connecter au serveur
+s.connect((HOST_IP, PORT))
+print(f"Connecté au serveur {HOST_IP}:{PORT}")
 
-# receive data from the server and decoding to get the string.
+# Recevoir le message de bienvenue du serveur
+welcome_message = s.recv(1024).decode('utf-8')
+print(welcome_message)
+
+# Boucle pour envoyer et recevoir des messages
 while True:
+    # Saisir un message à envoyer au serveur
+    message = input("Vous : ")
+
+    # Envoyer le message au serveur
+    s.send(message.encode('utf-8'))
+
+    # Recevoir la réponse du serveur
     data = s.recv(1024)
     if data:
-        print(data.decode('utf-8'))
+        print(f"{data.decode('utf-8')}")
+    else:
+        print("Connexion fermée par le serveur.")
+        break
+
+# Fermer la connexion
+s.close()

@@ -32,7 +32,8 @@ def on_new_client(connection_socket, client_address):
         if not msg:
             break
         print(f"{client_address} >> {msg.decode('utf-8')}")
-        connection_socket.send(msg)
+        msg = f"{client_address[0]} >> {msg.decode('utf-8')}".encode()
+        connection_socket.sendall(msg)
 
     print(f"Closing connection with {client_address}")
     connection_socket.close()
