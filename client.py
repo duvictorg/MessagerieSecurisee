@@ -1,6 +1,6 @@
 import threading
 import tkinter as tk
-from threading import Thread
+
 
 """
 # Créer la fenêtre principale
@@ -39,6 +39,7 @@ root.mainloop()
 """
 
 # Import socket module
+from threading import Thread
 import socket
 
 # Créer un objet socket
@@ -65,12 +66,14 @@ def data_recue(s):
         print("Connexion fermée par le serveur.")
         return False
 
+thread = Thread(target=data_recue, args=(s,))
+thread.start()
 while True:
     message = input("Vous : ")
 
     # Envoyer le message au serveur
     s.send(message.encode('utf-8'))
-    thread = Thread(target=data_recue, args=(s,)).start()
+
 
 
 
