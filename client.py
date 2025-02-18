@@ -1,4 +1,6 @@
+import threading
 import tkinter as tk
+from threading import Thread
 
 """
 # Créer la fenêtre principale
@@ -54,21 +56,25 @@ print(f"Connecté au serveur {HOST_IP}:{PORT}")
 welcome_message = s.recv(1024).decode('utf-8')
 print(welcome_message)
 
-# Boucle pour envoyer et recevoir des messages
+def data_recue(s):
+    data = s.recv(1024)
+    if data:
+        print(f"{data.decode('utf-8')}")
+        return True
+    else:
+        print("Connexion fermée par le serveur.")
+        return False
+
 while True:
-    # Saisir un message à envoyer au serveur
     message = input("Vous : ")
 
     # Envoyer le message au serveur
     s.send(message.encode('utf-8'))
+    thread = Thread(target=data_recue, args=(s,)).start()
 
-    # Recevoir la réponse du serveur
-    data = s.recv(1024)
-    if data:
-        print(f"{data.decode('utf-8')}")
-    else:
-        print("Connexion fermée par le serveur.")
-        break
+
+
+
 
 # Fermer la connexion
 s.close()
