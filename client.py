@@ -1,83 +1,76 @@
-import threading
-import tkinter as tk
-
-
-"""
-# Créer la fenêtre principale
-root = tk.Tk()
-root.title("Channel de discussion")
-root.geometry("400x500")
-root.maxsize(400, 500)
-
-# Ajouter un label
-label = tk.Label(root, text="Bonjour, Tkinter avec limites de redimensionnement!")
-label.pack(pady=20)
-
-# Ajouter un widget Text pour afficher les messages de chat
-chat_display = tk.Text(root, height=22, width=48, state=tk.DISABLED)
-chat_display.pack(pady=10)
-
-# Ajouter un champ d'entrée
-input_field = tk.Text(root, height=2, width=32)
-input_field.place(relx=0.365, rely=1.0, anchor="s", x=-10, y=-10)
-
-# Fonction pour afficher le texte saisi lorsque le bouton est cliqué
-def envoyer_message():
-    message = input_field.get("1.0", tk.END).strip()
-    if message:
-        chat_display.config(state=tk.NORMAL)
-        chat_display.insert(tk.END, f"Vous: {message}\n")
-        chat_display.config(state=tk.DISABLED)
-        input_field.delete("1.0", tk.END)
-
-# Ajouter un bouton en bas à droite avec une taille spécifique
-button = tk.Button(root, text="Envoyer", width=15, height=2, command=envoyer_message)
-button.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
-
-# Lancer la boucle principale de l'application
-root.mainloop()
-"""
-
-# Import socket module
-from threading import Thread
 import socket
+import threading
 
-# Créer un objet socket
-s = socket.socket()
+# Configuration du client
+HOST = '172.20.10.7'  # Adresse IP du serveur
+PORT = 5555         # Port du serveur
+MAX_DATA_SIZE = 1024
 
-# Définir l'adresse IP et le port du serveur
-HOST_IP = '172.20.10.7'  # Remplacez par l'adresse IP du serveur
-PORT = 5555
+class Client:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.running = False
 
-# Se connecter au serveur
-s.connect((HOST_IP, PORT))
-print(f"Connecté au serveur {HOST_IP}:{PORT}")
+    def connect(self):
+        """Établit une connexion avec le serveur."""
+        try:
+            self.client_socket.connect((self.host, self.port))
+            print(f"Connecté au serveur {self.host}:{self.port}")
+            self.running = True
+            # Démarrer les threads pour la réception et l'envoi de messages
+            threading.Thread(target=self.receive_messages, daemon=True).start()
+            threading.Thread(target=self.send_messages, daemon=True).start()
+        except Exception as e:
+            print(f"Erreur de connexion : {e}")
 
-# Recevoir le message de bienvenue du serveur
-welcome_message = s.recv(1024).decode('utf-8')
-print(welcome_message)
+    def receive_messages(self):
+        """Reçoit les messages du serveur en continu."""
+        while self.running:
+            try:
+                message = self.client_socket.recv(MAX_DATA_SIZE).decode('utf-8')
+                if not message:
+                    print("Connexion au serveur perdue.")
+                    self.running = False
+                    break
+                print(f"\nMessage reçu : {message}\n")
+            except ConnectionResetError:
+                print("Connexion au serveur perdue.")
+                self.running = False
+                break
+            except Exception as e:
+                print(f"Erreur lors de la réception du message : {e}")
+                self.running = False
+                break
 
-def data_recue(s):
-    data = s.recv(1024)
-    if data:
-        print(f"{data.decode('utf-8')}")
-        return True
-    else:
-        print("Connexion fermée par le serveur.")
-        return False
+    def send_messages(self):
+        """Envoie des messages au serveur."""
+        while self.running:
+            try:
+                message = input("Votre message : ")
+                if message.lower() == "quit":
+                    self.running = False
+                    break
+                self.client_socket.send(message.encode('utf-8'))
+            except Exception as e:
+                print(f"Erreur lors de l'envoi du message : {e}")
+                self.running = False
+                break
 
-thread = Thread(target=data_recue, args=(s,))
-thread.start()
-while True:
-    message = input("Vous : ")
-
-    # Envoyer le message au serveur
-    s.send(message.encode('utf-8'))
+    def disconnect(self):
+        """Ferme la connexion avec le serveur."""
+        self.running = False
+        self.client_socket.close()
+        print("Déconnecté du serveur.")
 
 
+if __name__ == "__main__":
+    client = Client(HOST, PORT)
+    client.connect()
 
+    # Garder le programme principal en vie pour permettre aux threads de fonctionner
+    while client.running:
+        pass
 
-
-
-# Fermer la connexion
-s.close()
+    client.disconnect()
