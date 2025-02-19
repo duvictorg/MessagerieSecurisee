@@ -30,15 +30,18 @@ class ChatClient:
             try:
                 data = self.socket.recv(1024).decode('utf-8')
                 if not data:
+                    print("Server closed the connection.")  # Log pour débogage
                     self.stop()
                     return
+                print(f"Received raw data: {data}")  # Log pour débogage
                 with self.lock:
                     self.message_queue.append(data)
             except (ConnectionResetError, ConnectionAbortedError):
+                print("Connection reset by server.")  # Log pour débogage
                 self.stop()
                 return
             except Exception as e:
-                messagebox.showerror("Network Error", f"Connection lost: {str(e)}")
+                print(f"Network error: {e}")  # Log pour débogage
                 self.stop()
                 return
 
@@ -121,11 +124,12 @@ class ChatGUI:
                 self.append_message(f"You: {message}")
                 self.input_field.delete("1.0", tk.END)
         self.input_field.focus_set()
-
     def schedule_receive(self):
         if not self.running:
             return
         messages = self.client.get_messages()
+        if messages:
+            print(f"Messages to display: {messages}")  # Log pour débogage
         for msg in messages:
             self.append_message(msg)
         self.root.after(100, self.schedule_receive)
