@@ -2,22 +2,17 @@ import socket
 import subprocess
 import threading
 
-# Get the host IP address dynamically
 hostname = subprocess.check_output("hostname", shell=True).decode().strip()
-try:
-    HOST_IP = socket.gethostbyname(socket.gethostname())
-except socket.gaierror:
-    HOST_IP = "127.0.0.1"  # Fallback to localhost
+HOST_IP = socket.gethostbyname(socket.gethostname())
 
 HOST_PORT = 5555
 MAX_DATA_SIZE = 1024
 
-# Initialize server socket
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 clients = []
-clients_lock = threading.Lock()  # Ensures thread safety
+clients_lock = threading.Lock()
 
 
 def create_server():
@@ -42,7 +37,6 @@ def create_server():
 
 
 def handle_client(conn, addr):
-    """Handles communication with a connected client."""
     try:
         conn.sendall(b"Connected to the server.")
 
@@ -71,7 +65,6 @@ def broadcast(message):
     with clients_lock:
         for client in clients[:]:
             client.send(message)
-
 
 if __name__ == "__main__":
     create_server()

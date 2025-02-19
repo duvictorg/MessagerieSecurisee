@@ -1,9 +1,35 @@
 import socket
 import threading
+import tkinter as tk
 
-# Configuration du client
-HOST = '172.20.10.7'  # Adresse IP du serveur
-PORT = 5555         # Port du serveur
+# Créer la fenêtre principale
+root = tk.Tk()
+root.title("Channel de discussion")
+root.geometry("400x500")
+root.maxsize(400, 500)
+
+label = tk.Label(root, text="Bonjour, Tkinter avec limites de redimensionnement!")
+label.pack(pady=20)
+
+chat_display = tk.Text(root, height=22, width=48, state=tk.DISABLED)
+chat_display.pack(pady=10)
+
+input_field = tk.Text(root, height=2, width=32)
+input_field.place(relx=0.365, rely=1.0, anchor="s", x=-10, y=-10)
+def envoyer_message():
+    message = input_field.get("1.0", tk.END).strip()
+    if message:
+        chat_display.config(state=tk.NORMAL)
+        chat_display.insert(tk.END, f"Vous: {message}\n")
+        chat_display.config(state=tk.DISABLED)
+        input_field.delete("1.0", tk.END)
+
+
+
+button = tk.Button(root, text="Envoyer", width=15, height=2, command=envoyer_message)
+button.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
+HOST = '172.20.10.7'
+PORT = 5555
 MAX_DATA_SIZE = 1024
 
 class Client:
@@ -14,19 +40,16 @@ class Client:
         self.running = False
 
     def connect(self):
-        """Établit une connexion avec le serveur."""
         try:
             self.client_socket.connect((self.host, self.port))
             print(f"Connecté au serveur {self.host}:{self.port}")
             self.running = True
-            # Démarrer les threads pour la réception et l'envoi de messages
             threading.Thread(target=self.receive_messages, daemon=True).start()
             threading.Thread(target=self.send_messages, daemon=True).start()
         except Exception as e:
             print(f"Erreur de connexion : {e}")
 
     def receive_messages(self):
-        """Reçoit les messages du serveur en continu."""
         while self.running:
             try:
                 message = self.client_socket.recv(MAX_DATA_SIZE).decode('utf-8')
@@ -45,7 +68,6 @@ class Client:
                 break
 
     def send_messages(self):
-        """Envoie des messages au serveur."""
         while self.running:
             try:
                 message = input("Votre message : ")
@@ -59,7 +81,6 @@ class Client:
                 break
 
     def disconnect(self):
-        """Ferme la connexion avec le serveur."""
         self.running = False
         self.client_socket.close()
         print("Déconnecté du serveur.")
@@ -68,8 +89,7 @@ class Client:
 if __name__ == "__main__":
     client = Client(HOST, PORT)
     client.connect()
-
-    # Garder le programme principal en vie pour permettre aux threads de fonctionner
+    root.mainloop()
     while client.running:
         pass
 
