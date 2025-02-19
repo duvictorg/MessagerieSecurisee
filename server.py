@@ -1,70 +1,83 @@
 import socket
 import subprocess
-import threading
+from threading import Thread, Lock
 
+# Configuration du serveur
 hostname = subprocess.check_output("hostname", shell=True).decode().strip()
-HOST_IP = socket.gethostbyname(socket.gethostname())
-
+IP = socket.gethostbyname(hostname)
+HOST_IP = str(IP)
 HOST_PORT = 5555
 MAX_DATA_SIZE = 1024
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Liste des clients connectés et verrou pour la synchronisation
+connected_clients = []
+client_lock = Lock()
+
+# Création du socket serveur
+server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server_socket.bind((HOST_IP, HOST_PORT))
+server_socket.listen(5)
+print(f"Server listening on {HOST_IP}, port {HOST_PORT}")
 
-clients = []
-clients_lock = threading.Lock()
+def broadcast_message(message, sender_socket=None, client_address=None):
+    """
+    Envoie un message à tous les clients connectés, sauf à l'expéditeur.
+    """
+    with client_lock:
+        for client in connected_clients:
+            if client != sender_socket:  # Ne pas renvoyer le message à l'expéditeur
+                try:
+                    message = f"{client_address} >> {message.decode()}"
+                    client.sendall(message.encode())
+                except (ConnectionResetError, ConnectionAbortedError):
+                    # Si le client est déconnecté, retirez-le de la liste
+                    connected_clients.remove(client)
+                    print(f"Client disconnected: {client.getpeername()}")
 
+def on_new_client(client_socket, client_address):
+    """
+    Gère la connexion d'un nouveau client.
+    """
+    print(f"Connection established with {client_address}")
+    with client_lock:
+        connected_clients.append(client_socket)  # Ajouter le client à la liste
+
+    try:
+        # Envoyer un message de bienvenue au client
+        client_socket.sendall(bytes("Connected to the server!", "utf-8"))
+
+        while True:
+            # Recevoir un message du client
+            msg = client_socket.recv(MAX_DATA_SIZE)
+            if not msg:
+                break  # Si le message est vide, le client s'est déconnecté
+
+            # Afficher le message sur le serveur
+            print(f"{client_address} >> {msg.decode('utf-8')}")
+
+            # Diffuser le message à tous les autres clients
+            broadcast_message(msg, client_socket,client_address)
+
+    except (ConnectionResetError, ConnectionAbortedError):
+        print(f"Client {client_address} disconnected abruptly.")
+    finally:
+        # Fermer la connexion et retirer le client de la liste
+        with client_lock:
+            if client_socket in connected_clients:
+                connected_clients.remove(client_socket)
+        client_socket.close()
+        print(f"Connection closed with {client_address}")
 
 def create_server():
-    try:
-        server_socket.bind((HOST_IP, HOST_PORT))
-        server_socket.listen(5)
-        print(f"Server listening on {HOST_IP}, port {HOST_PORT}")
+    """
+    Accepte les connexions entrantes et démarre un thread pour chaque client.
+    """
+    while True:
+        print(f"Waiting for a connection on {HOST_IP}, port {HOST_PORT}")
+        client_socket, client_address = server_socket.accept()
+        thread = Thread(target=on_new_client, args=(client_socket, client_address))
+        thread.start()
 
-        while True:
-            print(f"Waiting for a connection on {HOST_IP}, port {HOST_PORT}")
-            conn, addr = server_socket.accept()
-            with clients_lock:
-                clients.append(conn)
-
-            print(f"New connection from {addr}")
-            threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
-
-    except Exception as e:
-        print(f"Server error: {e}")
-    finally:
-        server_socket.close()
-
-
-def handle_client(conn, addr):
-    try:
-        conn.sendall(b"Connected to the server.")
-
-        while True:
-            msg = conn.recv(MAX_DATA_SIZE)
-            if not msg:
-                break
-
-            decoded_msg = msg.decode('utf-8')
-            print(f"{addr} >> {decoded_msg}")
-
-            message = f"{addr[0]} >> {decoded_msg}".encode('utf-8')
-            broadcast(message)
-
-    except ConnectionResetError:
-        print(f"Client {addr} disconnected unexpectedly.")
-    finally:
-        with clients_lock:
-            if conn in clients:
-                clients.remove(conn)
-        conn.close()
-        print(f"Connection closed with {addr}")
-
-
-def broadcast(message):
-    with clients_lock:
-        for client in clients[:]:
-            client.send(message)
-
-if __name__ == "__main__":
-    create_server()
+# Démarrer le serveur
+create_server()
