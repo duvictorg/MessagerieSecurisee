@@ -25,6 +25,7 @@ def envoyer_message():
         input_field.delete("1.0", tk.END)
 
 
+
 button = tk.Button(root, text="Envoyer", width=15, height=2, command=envoyer_message)
 button.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 HOST = '172.20.10.7'
