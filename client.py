@@ -1,6 +1,31 @@
 import socket
 import threading
+import tkinter as tk
 
+# Créer la fenêtre principale
+root = tk.Tk()
+root.title("Channel de discussion")
+root.geometry("400x500")
+root.maxsize(400, 500)
+
+label = tk.Label(root, text="Bonjour, Tkinter avec limites de redimensionnement!")
+label.pack(pady=20)
+
+chat_display = tk.Text(root, height=22, width=48, state=tk.DISABLED)
+chat_display.pack(pady=10)
+
+input_field = tk.Text(root, height=2, width=32)
+input_field.place(relx=0.365, rely=1.0, anchor="s", x=-10, y=-10)
+def envoyer_message():
+    message = input_field.get("1.0", tk.END).strip()
+    if message:
+        chat_display.config(state=tk.NORMAL)
+        chat_display.insert(tk.END, f"Vous: {message}\n")
+        chat_display.config(state=tk.DISABLED)
+        input_field.delete("1.0", tk.END)
+
+button = tk.Button(root, text="Envoyer", width=15, height=2, command=envoyer_message)
+button.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)
 HOST = '172.20.10.7'
 PORT = 5555
 MAX_DATA_SIZE = 1024
@@ -62,6 +87,7 @@ class Client:
 if __name__ == "__main__":
     client = Client(HOST, PORT)
     client.connect()
+    root.mainloop()
     while client.running:
         pass
 
