@@ -1,6 +1,7 @@
 import socket
 import subprocess
 from threading import Thread, Lock
+from chiffrement import vigenere
 
 # Configuration du serveur
 hostname = subprocess.check_output("hostname", shell=True).decode().strip()
@@ -28,8 +29,10 @@ def broadcast_message(message, sender_socket=None, client_address=None):
         for client in connected_clients:
             if client != sender_socket:  # Ne pas renvoyer le message à l'expéditeur
                 try:
-                    message = f"{client_address} >> {message.decode()}"
-                    client.sendall(message.encode())
+                    message_serveur = f"{client_address} >> "
+                    message_serveur += vigenere(message.decode('utf-8'),'RuariPotts',encrypt=False)
+                    message_serveur = vigenere(message_serveur,'RuariPotts')
+                    client.sendall(message_serveur.encode())
                 except (ConnectionResetError, ConnectionAbortedError):
                     # Si le client est déconnecté, retirez-le de la liste
                     connected_clients.remove(client)
@@ -45,7 +48,7 @@ def on_new_client(client_socket, client_address):
 
     try:
         # Envoyer un message de bienvenue au client
-        client_socket.sendall(bytes("Connected to the server!", "utf-8"))
+        client_socket.sendall(bytes(vigenere("Connected to the server!","RuariPotts"), "utf-8"))
 
         while True:
             # Recevoir un message du client

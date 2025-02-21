@@ -2,6 +2,7 @@ import socket
 import threading
 import tkinter as tk
 from tkinter import simpledialog, messagebox, scrolledtext
+from chiffrement import vigenere
 
 class ChatClient:
     def __init__(self, host, port):
@@ -29,6 +30,7 @@ class ChatClient:
         while self.running:
             try:
                 data = self.socket.recv(1024).decode('utf-8')
+                data = vigenere(data,'RuariPotts',encrypt=False)
                 if not data:
                     print("Server closed the connection.")  # Log pour débogage
                     self.stop()
@@ -120,7 +122,7 @@ class ChatGUI:
     def send_message(self):
         message = self.input_field.get("1.0", tk.END).strip()
         if message:
-            if self.client.send(message):
+            if self.client.send(vigenere(message,'RuariPotts')):
                 self.append_message(f"You: {message}")
                 self.input_field.delete("1.0", tk.END)
         self.input_field.focus_set()
