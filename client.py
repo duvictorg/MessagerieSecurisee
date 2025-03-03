@@ -7,6 +7,7 @@ from chiffrement import vigenere
 
 class ChatClient:
     def __init__(self, host, port):
+        self.cle_chiffrement = "RuariPotts"
         self.host = host
         self.port = port
         self.socket = None
@@ -49,11 +50,16 @@ class ChatClient:
                     return
 
                 # Décryptage du message reçu
-                decrypted_data = vigenere(data.decode("utf-8"), "RuariPotts", encrypt=False)
-                print(f"📩 Received: {decrypted_data}")  # Debugging
 
-                with self.lock:
-                    self.message_queue.append(decrypted_data)
+                if data.decode("utf-8").startswith("[CLÉ]"):
+                    self.cle_chiffrement = data[5:]
+                    print(self.cle_chiffrement)
+                else:
+                    decrypted_data = vigenere(data.decode("utf-8"), self.cle_chiffrement, encrypt=False)
+                    print(f"📩 Received: {decrypted_data}")  # Debugging
+
+                    with self.lock:
+                        self.message_queue.append(decrypted_data)
 
             except (ConnectionResetError, ConnectionAbortedError, ssl.SSLError) as e:
                 print(f"⚠ Connection error: {e}")
@@ -71,10 +77,10 @@ class ChatClient:
 
     def send(self, message):
         """
-        Envoie un message crypté au serveur.
+        Envoie un message chiffré au serveur.
         """
         try:
-            encrypted_message = vigenere(message, "RuariPotts")
+            encrypted_message = vigenere(message, self.cle_chiffrement)
             self.socket.sendall(encrypted_message.encode("utf-8"))
             return True
         except Exception as e:

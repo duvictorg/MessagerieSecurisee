@@ -21,6 +21,7 @@ server_socket.listen(5)
 # Configuration SSL
 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 context.load_cert_chain(certfile="certificate.pem", keyfile="private.key")
+cle_chiffrement = "RuariPotts"
 
 print(f"🔒 Secure Server listening on {HOST_IP}, port {HOST_PORT}")
 
@@ -35,8 +36,8 @@ def broadcast_message(message, sender_socket=None, client_address=None):
             if client != sender_socket:
                 try:
                     message_serveur = f"{client_address} >> "
-                    message_serveur += vigenere(message.decode("utf-8"), "RuariPotts", encrypt=False)
-                    message_serveur = vigenere(message_serveur, "RuariPotts")
+                    message_serveur += vigenere(message.decode("utf-8"), cle_chiffrement, encrypt=False)
+                    message_serveur = vigenere(message_serveur, cle_chiffrement)
                     client.sendall(message_serveur.encode())
                 except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                     disconnected_clients.append(client)
@@ -61,7 +62,8 @@ def on_new_client(client_socket, client_address):
 
     try:
         # Envoyer un message de bienvenue
-        welcome_message = vigenere("Connected to the secure server!", "RuariPotts")
+        secure_client_socket.sendall(cle_chiffrement.encode())
+        welcome_message = vigenere("Connected to the secure server!", cle_chiffrement)
         secure_client_socket.sendall(welcome_message.encode())
 
         while True:
