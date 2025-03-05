@@ -75,6 +75,8 @@ def main():
 
 def aes(text, key, encrypt=True):
     # Genere une cle AES en SHA 256
+    if type(key) == bytes:
+        key = key.decode("utf-8")
     key_hash = hashlib.sha256(key.encode()).digest()[:16]
     
     cipher = AES.new(key_hash, AES.MODE_ECB)
@@ -82,8 +84,8 @@ def aes(text, key, encrypt=True):
     if encrypt:
         # Padding pour rendre compa avec AES
         padded_data = pad(text.encode('utf-8'), AES.block_size)
-        encrypted_data = cipher.encrypt(padded_data)
-        return encrypted_data.hex()  # Return le string en hex
+        encrypted_data = cipher.encrypt(padded_data).hex()
+        return encrypted_data
     else:
         # Convertis et decrypte
         encrypted_data = bytes.fromhex(text)

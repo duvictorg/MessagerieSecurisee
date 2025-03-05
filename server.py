@@ -1,7 +1,7 @@
 import socket
 import ssl
 import threading
-from chiffrement import vigenere
+from chiffrement import aes
 
 # Configuration du serveur
 HOST_IP = socket.gethostbyname(socket.gethostname())
@@ -36,8 +36,8 @@ def broadcast_message(message, sender_socket=None, client_address=None):
             if client != sender_socket:
                 try:
                     message_serveur = f"{client_address} >> "
-                    message_serveur += vigenere(message.decode("utf-8"), cle_chiffrement, encrypt=False)
-                    message_serveur = vigenere(message_serveur, cle_chiffrement)
+                    message_serveur += aes(message.decode("utf-8"), cle_chiffrement, encrypt=False)
+                    message_serveur = aes(message_serveur, cle_chiffrement)
                     client.sendall(message_serveur.encode())
                 except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                     disconnected_clients.append(client)
@@ -62,8 +62,9 @@ def on_new_client(client_socket, client_address):
 
     try:
         # Envoyer un message de bienvenue
-        secure_client_socket.sendall(cle_chiffrement.encode())
-        welcome_message = vigenere("Connected to the secure server!", cle_chiffrement)
+        envoie_cle = "[CLÉ]"+cle_chiffrement
+        secure_client_socket.sendall(envoie_cle.encode())
+        welcome_message = aes("Connected to the secure server!", cle_chiffrement)
         secure_client_socket.sendall(welcome_message.encode())
 
         while True:

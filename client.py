@@ -3,7 +3,7 @@ import ssl
 import threading
 import tkinter as tk
 from tkinter import simpledialog, messagebox, scrolledtext
-from chiffrement import vigenere
+from chiffrement import aes
 
 class ChatClient:
     def __init__(self, host, port):
@@ -52,10 +52,10 @@ class ChatClient:
                 # Décryptage du message reçu
 
                 if data.decode("utf-8").startswith("[CLÉ]"):
-                    self.cle_chiffrement = data[5:]
+                    self.cle_chiffrement = data[6:]
                     print(self.cle_chiffrement)
                 else:
-                    decrypted_data = vigenere(data.decode("utf-8"), self.cle_chiffrement, encrypt=False)
+                    decrypted_data = aes(data.decode("utf-8"), self.cle_chiffrement, encrypt=False)
                     print(f"📩 Received: {decrypted_data}")  # Debugging
 
                     with self.lock:
@@ -80,7 +80,7 @@ class ChatClient:
         Envoie un message chiffré au serveur.
         """
         try:
-            encrypted_message = vigenere(message, self.cle_chiffrement)
+            encrypted_message = aes(message, self.cle_chiffrement)
             self.socket.sendall(encrypted_message.encode("utf-8"))
             return True
         except Exception as e:
