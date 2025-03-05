@@ -226,7 +226,7 @@ class ConnectionDialog(simpledialog.Dialog):
     def apply(self):
         self.host = self.ip_entry.get()
         self.port = int(self.port_entry.get())
-
+#VScode best IDE
 def main():
     root = tk.Tk()
     root.withdraw()
