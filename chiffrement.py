@@ -1,3 +1,7 @@
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+import hashlib
+
 def decalage(char, shift, encrypt=True):
     return chr((ord(char) + shift) % 128) if encrypt else chr((ord(char) - shift) % 128)
 
@@ -68,3 +72,22 @@ def main():
     # Effectuer l'opération XOR
     xor_result = xor(binary_key, binary_data)
     print(f"Résultat XOR en binaire: {xor_result}")
+
+def aes(text, key, encrypt=True):
+    # Genere une cle AES en SHA 256
+    key_hash = hashlib.sha256(key.encode()).digest()[:16]
+    
+    cipher = AES.new(key_hash, AES.MODE_ECB)
+    
+    if encrypt:
+        # Padding pour rendre compa avec AES
+        padded_data = pad(text.encode('utf-8'), AES.block_size)
+        encrypted_data = cipher.encrypt(padded_data)
+        return encrypted_data.hex()  # Return le string en hex
+    else:
+        # Convertis et decrypte
+        encrypted_data = bytes.fromhex(text)
+        decrypted_data = cipher.decrypt(encrypted_data)
+        # Retire le padding et met le texte original
+        unpadded_data = unpad(decrypted_data, AES.block_size)
+        return unpadded_data.decode('utf-8')
