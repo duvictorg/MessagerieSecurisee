@@ -1,5 +1,7 @@
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
 import hashlib
 
 def decalage(char, shift, encrypt=True):
@@ -93,3 +95,25 @@ def aes(text, key, encrypt=True):
         # Retire le padding et met le texte original
         unpadded_data = unpad(decrypted_data, AES.block_size)
         return unpadded_data.decode('utf-8')
+    
+def generate_rsa_keys(key_size=2048):
+    """Generate RSA public and private keys."""
+    key = RSA.generate(key_size)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
+    return public_key, private_key
+
+def rsa_encrypt(plaintext, public_key):
+    """Encrypt a message using RSA public key."""
+    rsa_key = RSA.import_key(public_key)
+    cipher = PKCS1_OAEP.new(rsa_key)
+    ciphertext = cipher.encrypt(plaintext.encode())
+    return ciphertext.hex()
+
+def rsa_decrypt(ciphertext_hex, private_key):
+    """Decrypt a message using RSA private key."""
+    rsa_key = RSA.import_key(private_key)
+    cipher = PKCS1_OAEP.new(rsa_key)
+    ciphertext = bytes.fromhex(ciphertext_hex)
+    plaintext = cipher.decrypt(ciphertext)
+    return plaintext.decode()
