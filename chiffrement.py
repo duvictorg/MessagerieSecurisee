@@ -19,6 +19,9 @@ def cesar(text, shift, encrypt=True):
             text = "".join([abcd[(abcd.index(char) - shift) % 26] if char in abcd else char for char in text])
     return text 
 
+def binaire(text):
+    return ''.join(format(ord(char), '08b') for char in text)
+
 def main():
     # Exemple de clé et de données
     cle = "clef"
