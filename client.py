@@ -3,11 +3,12 @@ import ssl
 import threading
 import tkinter as tk
 from tkinter import simpledialog, messagebox, scrolledtext
-from chiffrement import aes
+import chiffrement
+from chiffrement import rsa_encrypt,rsa_decrypt
 
 class ChatClient:
     def __init__(self, host, port):
-        self.cle_chiffrement = "RuariPotts"
+        self.cle_chiffrement = ''
         self.host = host
         self.port = port
         self.socket = None
@@ -15,6 +16,7 @@ class ChatClient:
         self.receive_thread = None
         self.message_queue = []
         self.lock = threading.Lock()
+        self.public_key, self.private_key = chiffrement.generate_rsa_keys()
 
     def connect(self):
         """
@@ -28,6 +30,7 @@ class ChatClient:
 
             self.socket = socket.create_connection((self.host, self.port))
             self.socket = context.wrap_socket(self.socket, server_hostname=self.host)
+            self.socket.sendall(self.public_key)
 
             self.running = True
             self.receive_thread = threading.Thread(target=self._receive_loop, daemon=True)
@@ -49,13 +52,10 @@ class ChatClient:
                     self.stop()
                     return
 
-                # Décryptage du message reçu
-
                 if data.decode("utf-8").startswith("[CLÉ]"):
                     self.cle_chiffrement = data[6:]
-                    print(self.cle_chiffrement)
                 else:
-                    decrypted_data = aes(data.decode("utf-8"), self.cle_chiffrement, encrypt=False)
+                    decrypted_data = rsa_decrypt(data.decode("utf-8"), self.private_key)
                     print(f"📩 Received: {decrypted_data}")  # Debugging
 
                     with self.lock:
@@ -80,7 +80,7 @@ class ChatClient:
         Envoie un message chiffré au serveur.
         """
         try:
-            encrypted_message = aes(message, self.cle_chiffrement)
+            encrypted_message = rsa_encrypt(message, self.cle_chiffrement)
             self.socket.sendall(encrypted_message.encode("utf-8"))
             return True
         except Exception as e:
