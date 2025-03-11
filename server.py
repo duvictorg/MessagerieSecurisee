@@ -2,6 +2,7 @@ import socket
 import ssl
 import threading
 from chiffrement import rsa_encrypt, rsa_decrypt
+from auth import authenticate_user, register_user
 import os
 
 # Configuration du serveur
@@ -35,23 +36,23 @@ def generate_encryption_key():
     return os.urandom(16).hex()  # Clé de 16 octets (32 caractères hexadécimaux)
 
 
-def broadcast_message(message, sender_socket=None, sender_address=None):
-    """
-    Envoie un message à tous les clients connectés, sauf à l'expéditeur.
-    Chaque message est chiffré avec la clé du client destinataire.
-    """
+def broadcast_message(message, sender_socket=None, sender_username=None):
+    """ Envoie un message à tous les clients sauf l'expéditeur """
     with client_lock:
         disconnected_clients = []
         for client_socket, client_key in connected_clients.items():
             if client_socket != sender_socket:
                 try:
-                    # Chiffrer le message avec la clé du client destinataire
-                    message_serveur = f"{sender_address} >> "
+                    message_serveur = f"{sender_username} >> "
                     message_serveur += rsa_decrypt(message, private_key)
                     encrypted_message = rsa_encrypt(message_serveur, client_key)
                     client_socket.sendall(encrypted_message.encode())
                 except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
                     disconnected_clients.append(client_socket)
+
+        for client_socket in disconnected_clients:
+            del connected_clients[client_socket]
+            print(f"❌ Client removed: {client_socket}")
 
         # Supprimer les clients déconnectés
         for client_socket in disconnected_clients:
@@ -60,24 +61,40 @@ def broadcast_message(message, sender_socket=None, sender_address=None):
 
 
 def on_new_client(client_socket, client_address):
-    """
-    Gère la connexion d'un nouveau client via SSL.
-    """
     print(f"🔗 New connection from {client_address}")
 
-    # Appliquer SSL au socket client
     secure_client_socket = context.wrap_socket(client_socket, server_side=True)
     with open("public_key.pem", "r", encoding="utf-8") as fichier:
         public_key = fichier.read()
 
     client_key = secure_client_socket.recv(2048)
     client_key = client_key.decode('utf-8')
-
-    # Ajouter le client au dictionnaire des clients connectés
-    with client_lock:
-        connected_clients[secure_client_socket] = client_key
-
     try:
+        response = secure_client_socket.recv(2048).decode('utf-8')
+
+        if response.startswith("[REGISTER]"):
+            _, username, password = response.split(":")
+            success, message = register_user(username, password)
+            secure_client_socket.sendall(message.encode())
+            if not success:
+                secure_client_socket.close()
+                return
+
+        elif response.startswith("[LOGIN]"):
+            _, username, password = response.split(":")
+            success, message = authenticate_user(username, password)
+            secure_client_socket.sendall(message.encode())
+            if not success:
+                secure_client_socket.close()
+                return
+        else:
+            secure_client_socket.sendall("❌ Commande invalide !".encode())
+            secure_client_socket.close()
+            return
+
+        # Authentification réussie, on stocke le client
+        with client_lock:
+            connected_clients[secure_client_socket] = client_key
         # Envoyer la clé de chiffrement au client
         secure_client_socket.sendall(f"[CLÉ]{public_key}".encode())
 
@@ -88,15 +105,12 @@ def on_new_client(client_socket, client_address):
         while True:
             msg = secure_client_socket.recv(MAX_DATA_SIZE)
             if not msg:
-                break  # Déconnexion du client
-            print(f"{client_address} >> {msg.decode('utf-8')}")
-
-            broadcast_message(msg.decode('utf-8'), secure_client_socket, client_address)
+                break
+            print(f"{username} >> {msg.decode('utf-8')}")
+            broadcast_message(msg.decode('utf-8'), secure_client_socket, username)
 
     except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-        print(f"⚠️ Client {client_address} disconnected unexpectedly.")
-    finally:
-        # Nettoyage et fermeture
+        print(f"⚠️ Client {client_address}")
         with client_lock:
             if secure_client_socket in connected_clients:
                 del connected_clients[secure_client_socket]

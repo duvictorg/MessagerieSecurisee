@@ -6,8 +6,10 @@ from tkinter import simpledialog, messagebox, scrolledtext
 import chiffrement
 from chiffrement import rsa_encrypt,rsa_decrypt
 
+
 class ChatClient:
     def __init__(self, host, port):
+        self.username = None  # Stocke l'identifiant de l'utilisateur
         self.cle_chiffrement = ''
         self.host = host
         self.port = port
@@ -18,24 +20,58 @@ class ChatClient:
         self.lock = threading.Lock()
         self.public_key, self.private_key = chiffrement.generate_rsa_keys()
 
+    def authenticate(self):
+        """
+        Demande à l'utilisateur de s'authentifier ou de s'inscrire.
+        """
+        auth_choice = simpledialog.askstring("Authentication", "Type 'LOGIN' or 'REGISTER'").strip().upper()
+        if auth_choice not in ["LOGIN", "REGISTER"]:
+            messagebox.showerror("Error", "Invalid choice. Type LOGIN or REGISTER.")
+            return False
+
+        self.username = simpledialog.askstring("Username", "Enter your username:")
+        password = simpledialog.askstring("Password", "Enter your password:", show='*')
+
+        if not self.username or not password:
+            messagebox.showerror("Error", "Username and password cannot be empty!")
+            return False
+
+        # Envoyer les informations au serveur
+        auth_message = f"[{auth_choice}]:{self.username}:{password}"
+        self.socket.sendall(auth_message.encode())
+
+        # Réponse du serveur
+        response = self.socket.recv(1024).decode()
+        if "✅" in response:  # Succès
+            messagebox.showinfo("Success", response)
+            return True
+        else:  # Échec
+            messagebox.showerror("Error", response)
+            return False
+
     def connect(self):
         """
-        Connecte le client au serveur sécurisé via SSL.
+        Connecte le client au serveur et gère l'authentification.
         """
         try:
-            # Création d'un contexte SSL sécurisé
             context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-            context.check_hostname = False  # Désactive la vérification du nom d'hôte
-            context.verify_mode = ssl.CERT_NONE  # Désactive la vérification du certificat (⚠ uniquement pour le test)
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
 
             self.socket = socket.create_connection((self.host, self.port))
             self.socket = context.wrap_socket(self.socket, server_hostname=self.host)
             self.socket.sendall(self.public_key)
 
+            # Authentification avant de continuer
+            if not self.authenticate():
+                self.socket.close()
+                return False
+
             self.running = True
             self.receive_thread = threading.Thread(target=self._receive_loop, daemon=True)
             self.receive_thread.start()
             return True
+
         except Exception as e:
             messagebox.showerror("Connection Error", f"Failed to connect: {str(e)}")
             return False
@@ -159,15 +195,14 @@ class ChatGUI:
 
     def send_message(self):
         """
-        Récupère le message entré par l'utilisateur et l'envoie au serveur.
+        Envoie le message et l'affiche avec le nom d'utilisateur.
         """
         message = self.input_field.get("1.0", tk.END).strip()
         if message:
             if self.client.send(message):
-                self.append_message(f"You: {message}")
+                self.append_message(f"{self.client.username}: {message}")
                 self.input_field.delete("1.0", tk.END)
         self.input_field.focus_set()
-
     def schedule_receive(self):
         """
         Vérifie toutes les 100 ms s'il y a de nouveaux messages à afficher.
